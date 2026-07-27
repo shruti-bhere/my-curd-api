@@ -96,63 +96,14 @@ def get_task(task_id: int):
 
 @app.post("/tasks", status_code=status.HTTP_201_CREATED)
 def create_task(task: TaskCreate):
-    """Stage 2: Insert new task into database."""
     clean_title = task.title.strip()
     if not clean_title:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Title cannot be empty"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title cannot be empty")
         
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO tasks (title, done) VALUES (?, ?)",
-            (clean_title, int(task.done))
-        )
+        cursor.execute("INSERT INTO tasks (title, done) VALUES (?, ?)", (clean_title, int(task.done)))
         conn.commit()
         new_id = cursor.lastrowid
         
     return {"id": new_id, "title": clean_title, "done": task.done}
-
-@app.put("/tasks/{task_id}")
-def update_task(task_id: int, task: TaskUpdate):
-    """Stage 3: Update existing task."""
-    clean_title = task.title.strip()
-    if not clean_title:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Title cannot be empty"
-        )
-        
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
-            (clean_title, int(task.done), task_id)
-        )
-        conn.commit()
-        
-        if cursor.rowcount == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail="Task not found"
-            )
-            
-    return {"id": task_id, "title": clean_title, "done": task.done}
-
-@app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: int):
-    """Stage 3: Delete task by ID."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-        conn.commit()
-        
-        if cursor.rowcount == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail="Task not found"
-            )
-            
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
