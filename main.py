@@ -1,8 +1,9 @@
 import sqlite3
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException, Response, status
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
+from fastapi import Response
 
 DB_NAME = "tasks.db"
 
@@ -107,3 +108,29 @@ def create_task(task: TaskCreate):
         new_id = cursor.lastrowid
         
     return {"id": new_id, "title": clean_title, "done": task.done}
+
+@app.put("/tasks/{task_id}")
+def update_task(task_id: int, task: TaskUpdate):
+    clean_title = task.title.strip()
+    if not clean_title:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Title cannot be empty")
+        
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("UPDATE tasks SET title = ?, done = ? WHERE id = ?", (clean_title, int(task.done), task_id))
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+            
+    return {"id": task_id, "title": clean_title, "done": task.done}
+
+@app.delete("/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task(task_id: int):
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+        conn.commit()
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+            
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
